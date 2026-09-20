@@ -5,7 +5,7 @@
 - 반복 일정: 회차마다 개별 records(series_id) — `create_series` 함수가 원자적으로 생성, `update_record / delete_record` 가 scope(single/following/all)·version 을 처리.
 - 일괄 등록: 브라우저가 파일을 읽고 미리 보기 검증(`lib/import.js`) → `import_duties / import_schedule` 함수가 다시 검증해 한 트랜잭션으로 저장.
 - 첨부: Storage 비공개 버킷 `attachments`, 경로 `<record>/<id>.<ext>`, 정책이 `can_view_record / can_edit_record` 로 검사. 화면은 서명 URL(5분)로 열람·내려받기. 새 안내+첨부는 초안→업로드→확정(원자적 게시) 유지.
-- 로그인: Supabase Auth. `auth.users` insert 트리거 `handle_new_user` 가 명단(roster)·관리자 이메일 규칙으로 staff 행 생성. 비활성(active=false)은 RLS 에서 모든 접근 차단.
+- 로그인: Supabase Auth. `auth.users` insert 트리거 `handle_new_user` 가 명단(staff_roster)·관리자 이메일 규칙으로 staff 행 생성. 비활성(active=false)은 RLS 에서 모든 접근 차단.
 - 배포: `public/` 을 GitHub Pages 로. 상대 경로·`<meta>` CSP·vendor supabase-js·scope 기준 서비스워커.
 
 아래는 v0.x(Node+SQLite, `_legacy/`) 시점의 문서이며 화면 규칙(급식지도 두 자리, 공개 조건, 시간대, 월간표, 일괄 등록 검증 규칙, 반복 규칙)은 그대로 유효하다.

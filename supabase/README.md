@@ -14,7 +14,7 @@
 | 표 | 내용 |
 |---|---|
 | departments | 부서 14개(기본값) |
-| roster | 가입 허용 명단(이메일·이름·부서·권한) |
+| staff_roster | 교직원 명단 = 가입 허용 목록(이메일·이름·부서·권한). 다른 앱의 학생 roster 표와 이름이 겹치지 않게 함 |
 | staff | 가입한 교직원(auth.users 와 1:1). active=false 면 모든 자료 접근 차단 |
 | records / record_series | 공지·일정, 반복 일정 규칙 |
 | attachments + Storage `attachments`(비공개) | 첨부 파일 메타·바이트. 경로 `<안내 id>/<파일 id>.<확장자>` |

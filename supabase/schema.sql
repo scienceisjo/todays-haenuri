@@ -26,8 +26,8 @@ insert into public.departments (id, name, sort) values
   ('career','진로진학부',10),('counsel','상담복지부',11),('learning','학력신장부',12),('office','행정실',13),('facility','시설관리과',14)
 on conflict (id) do update set name = excluded.name, sort = excluded.sort;
 
--- 가입 허용 명단: 관리자가 등록한 이메일만 가입할 수 있다.
-create table if not exists public.roster (
+-- 교직원 명단(가입 허용 목록). 다른 앱의 roster(학생 명단)와 겹치지 않도록 staff_roster 로 둔다.
+create table if not exists public.staff_roster (
   email text primary key check (email = lower(email) and email ~ '^\S+@\S+\.\S+$'),
   name text not null check (length(name) between 1 and 60),
   department_id text references public.departments(id),
@@ -66,37 +66,44 @@ $$;
 -- 비어 있으면 첫 가입자가 관리자. 그 밖에는 명단(roster)에 있는 이메일만 가입할 수 있다.
 create or replace function public.handle_new_user() returns trigger
 language plpgsql security definer set search_path = public as $$
-declare r public.roster%rowtype; first_user boolean; boot text; is_boot boolean;
+declare r public.staff_roster%rowtype; first_user boolean; boot text; is_boot boolean; nm text; dep text; rl text;
 begin
   select value into boot from public.settings where key = 'bootstrap_admin_email';
   boot := nullif(lower(trim(coalesce(boot, ''))), '');
   is_boot := boot is not null and lower(new.email) = boot;
   select not exists (select 1 from public.staff) into first_user;
-  select * into r from public.roster where email = lower(new.email);
+  select * into r from public.staff_roster where email = lower(new.email);
   if not found and not is_boot and not (first_user and boot is null) then
     raise exception '교직원 명단에 없는 이메일입니다. 관리자에게 등록을 요청해주세요.';
   end if;
-  insert into public.staff (id, email, name, department_id, role)
-  values (new.id, lower(new.email),
-          coalesce(r.name, nullif(new.raw_user_meta_data->>'name',''), split_part(new.email,'@',1)),
-          coalesce(r.department_id, nullif(new.raw_user_meta_data->>'department_id','')),
-          case when is_boot or (first_user and boot is null) then 'admin' else coalesce(r.role,'staff') end);
+  nm := coalesce(r.name, nullif(new.raw_user_meta_data->>'name', ''), split_part(new.email, '@', 1));
+  dep := coalesce(r.department_id, nullif(new.raw_user_meta_data->>'department_id', ''));
+  if dep is not null and not exists (select 1 from public.departments where id = dep) then dep := null; end if;
+  rl := case when is_boot or (first_user and boot is null) then 'admin' else coalesce(r.role, 'staff') end;
+  begin
+    insert into public.staff (id, email, name, department_id, role) values (new.id, lower(new.email), left(nm, 60), dep, rl);
+  exception when others then
+    raise exception 'staff 생성 실패: % [%]', sqlerrm, sqlstate;
+  end;
   return new;
 end $$;
+
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created after insert on auth.users for each row execute function public.handle_new_user();
+grant usage on schema public to supabase_auth_admin;
+grant execute on function public.handle_new_user() to supabase_auth_admin;
 
 -- 가입 화면에서 미리 확인(익명 호출 가능): 이 이메일로 가입할 수 있는가
 create or replace function public.can_register(p_email text) returns jsonb
 language plpgsql stable security definer set search_path = public as $$
-declare r public.roster%rowtype; first_user boolean; boot text; e text := lower(trim(coalesce(p_email,'')));
+declare r public.staff_roster%rowtype; first_user boolean; boot text; e text := lower(trim(coalesce(p_email,'')));
 begin
   if exists (select 1 from public.staff where email = e) then return jsonb_build_object('ok', false, 'reason', '이미 가입된 이메일입니다. 로그인해주세요.'); end if;
   select value into boot from public.settings where key = 'bootstrap_admin_email';
   boot := nullif(lower(trim(coalesce(boot, ''))), '');
   select not exists (select 1 from public.staff) into first_user;
   if (boot is not null and e = boot) or (first_user and boot is null) then return jsonb_build_object('ok', true, 'admin', true); end if;
-  select * into r from public.roster where email = e;
+  select * into r from public.staff_roster where email = e;
   if not found then return jsonb_build_object('ok', false, 'reason', '교직원 명단에 없는 이메일입니다. 관리자에게 등록을 요청해주세요.'); end if;
   return jsonb_build_object('ok', true, 'name', r.name, 'department_id', r.department_id);
 end $$;
@@ -259,26 +266,36 @@ drop trigger if exists attachments_touch_tr on public.attachments;
 create trigger attachments_touch_tr after insert or delete on public.attachments for each row execute function public.attachments_touch_record();
 
 create or replace function public.log_change() returns trigger language plpgsql security definer set search_path = public as $$
-declare act text; ent text; det text;
+declare act text; ent text; det text; rec jsonb; prev jsonb;
 begin
-  act := tg_table_name || '_' || lower(tg_op);
-  if tg_table_name = 'records' then
-    if tg_op = 'UPDATE' and old.deleted_at is null and new.deleted_at is not null then act := 'records_delete';
-    elsif tg_op = 'UPDATE' and old.deleted_at is not null and new.deleted_at is null then act := 'records_restore'; end if;
-    ent := coalesce(new.id, old.id)::text; det := coalesce(new.title, old.title);
-  elsif tg_table_name in ('meals','meal_duties') then ent := coalesce(new.id, old.id)::text; det := coalesce(new.date, old.date)::text;
-  elsif tg_table_name = 'holidays' then ent := coalesce(new.date, old.date)::text; det := coalesce(new.name, old.name);
-  elsif tg_table_name = 'settings' then ent := coalesce(new.key, old.key); det := case when coalesce(new.key, old.key) like 'bootstrap%' then '' else coalesce(new.value, old.value) end;
-  elsif tg_table_name = 'attachments' then ent := coalesce(new.record_id, old.record_id)::text; det := coalesce(new.original_name, old.original_name);
-  elsif tg_table_name = 'staff' then ent := coalesce(new.id, old.id)::text; det := coalesce(new.name, old.name);
-  elsif tg_table_name = 'roster' then ent := coalesce(new.email, old.email); det := coalesce(new.name, old.name);
-  elsif tg_table_name = 'record_series' then ent := coalesce(new.id, old.id)::text; det := coalesce(new.title, old.title);
-  end if;
-  insert into public.activity_logs (user_id, action, entity_id, detail) values (auth.uid(), act, ent, left(coalesce(det,''), 200));
+  begin
+    rec := case when tg_op = 'DELETE' then to_jsonb(old) else to_jsonb(new) end;
+    prev := case when tg_op = 'UPDATE' then to_jsonb(old) else null end;
+    act := tg_table_name || '_' || lower(tg_op);
+    if tg_table_name = 'records' and tg_op = 'UPDATE' then
+      if (prev->>'deleted_at') is null and (rec->>'deleted_at') is not null then act := 'records_delete';
+      elsif (prev->>'deleted_at') is not null and (rec->>'deleted_at') is null then act := 'records_restore'; end if;
+    end if;
+    ent := case when tg_table_name = 'attachments' then rec->>'record_id' else coalesce(rec->>'id', rec->>'date', rec->>'key', rec->>'email') end;
+    det := case tg_table_name
+             when 'records' then rec->>'title'
+             when 'meals' then rec->>'date'
+             when 'meal_duties' then rec->>'date'
+             when 'holidays' then rec->>'name'
+             when 'settings' then case when (rec->>'key') like 'bootstrap%' then '' else rec->>'value' end
+             when 'attachments' then rec->>'original_name'
+             when 'staff' then rec->>'name'
+             when 'staff_roster' then rec->>'name'
+             when 'record_series' then rec->>'title'
+             else '' end;
+    insert into public.activity_logs (user_id, action, entity_id, detail) values (auth.uid(), act, ent, left(coalesce(det, ''), 200));
+  exception when others then
+    null; -- 기록 실패는 무시
+  end;
   return coalesce(new, old);
 end $$;
 do $$ declare t text; begin
-  foreach t in array array['records','meals','meal_duties','holidays','settings','attachments','staff','roster','record_series'] loop
+  foreach t in array array['records','meals','meal_duties','holidays','settings','attachments','staff','staff_roster','record_series'] loop
     execute format('drop trigger if exists %I on public.%I', t || '_log', t);
     execute format('create trigger %I after insert or update or delete on public.%I for each row execute function public.log_change()', t || '_log', t);
   end loop;
@@ -306,7 +323,7 @@ select l.*, s.name as user_name from public.activity_logs l left join public.sta
 
 -- ---------- 7. 행 수준 보안(RLS) ----------
 alter table public.departments enable row level security;
-alter table public.roster enable row level security;
+alter table public.staff_roster enable row level security;
 alter table public.staff enable row level security;
 alter table public.record_series enable row level security;
 alter table public.records enable row level security;
@@ -320,7 +337,7 @@ alter table public.activity_logs enable row level security;
 
 -- 정책을 다시 만들 수 있게 먼저 지운다
 do $$ declare p record; begin
-  for p in select policyname, tablename from pg_policies where schemaname = 'public' loop
+  for p in select policyname, tablename from pg_policies where schemaname = 'public' and tablename in ('departments','staff_roster','staff','record_series','records','record_reads','attachments','meals','meal_duties','holidays','settings','activity_logs') loop
     execute format('drop policy if exists %I on public.%I', p.policyname, p.tablename);
   end loop;
 end $$;
@@ -330,7 +347,7 @@ create policy departments_read on public.departments for select to anon, authent
 create policy departments_admin on public.departments for all to authenticated using (public.is_admin()) with check (public.is_admin());
 
 -- 명단: 관리자만
-create policy roster_admin on public.roster for all to authenticated using (public.is_admin()) with check (public.is_admin());
+create policy staff_roster_admin on public.staff_roster for all to authenticated using (public.is_admin()) with check (public.is_admin());
 
 -- 교직원: 재직자는 모두 읽기(이름·부서 표시용), 관리자는 변경
 create policy staff_read on public.staff for select to authenticated using (public.is_active_staff() or id = auth.uid());
