@@ -9,8 +9,9 @@
 create extension if not exists pgcrypto;
 
 create table if not exists public.settings (key text primary key, value text not null);
-insert into public.settings (key, value) values ('bootstrap_admin_email', '') on conflict (key) do nothing;
-update public.settings set value = lower(trim('')) where key = 'bootstrap_admin_email';   -- ← 여기 따옴표 안에 관리자 이메일
+-- ★ 관리자 이메일: 아래 따옴표 안에 적으세요. 이 이메일로 가입하면 관리자가 됩니다(비우면 첫 가입자가 관리자).
+insert into public.settings (key, value) values ('bootstrap_admin_email', lower(trim('')))
+on conflict (key) do update set value = excluded.value;
 insert into public.settings (key, value) values ('school_name','해누리중학교'), ('app_name','오늘의 해누리') on conflict (key) do nothing;
 
 -- ---------- 1. 부서 / 교직원 명단 / 교직원 ----------

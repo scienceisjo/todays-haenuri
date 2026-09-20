@@ -1,11 +1,11 @@
 # Supabase 설치 (한 번만)
 
 1. Supabase 대시보드 → 이 프로젝트 → **SQL Editor → New query**
-2. `schema.sql` 전체를 붙여 넣기 전에, 위쪽의 이 줄에서 따옴표 안에 **관리자 이메일**을 적습니다.
+2. `schema.sql` 전체를 붙여 넣기 전에, 위쪽 `bootstrap_admin_email` 줄의 따옴표 안에 **관리자 이메일**을 적습니다.
    ```sql
-   update public.settings set value = lower(trim('')) where key = 'bootstrap_admin_email';   -- ← 여기
+   insert into public.settings (key, value) values ('bootstrap_admin_email', lower(trim('여기@이메일')))
    ```
-   (비워 두면 "첫 번째로 가입하는 사람"이 관리자가 됩니다.)
+   (비워 두면 "첫 번째로 가입하는 사람"이 관리자가 됩니다. 이미 실행한 뒤 바꾸려면 SQL Editor 에서 `update public.settings set value = '이메일' where key = 'bootstrap_admin_email';` 한 줄만 실행.)
 3. **Run** — 표·권한(RLS)·파일 저장소·가입 규칙·일괄 등록 함수가 만들어집니다. 다시 실행해도 안전합니다.
 4. **Authentication → Providers → Email → "Confirm email" 끄기** (명단으로 가입을 제한하므로 이메일 확인 절차가 필요 없습니다. 켜 두면 가입 후 메일 확인 전까지 로그인이 안 됩니다.)
 5. 앱(GitHub Pages 주소)을 열고 관리자 이메일로 **가입** → 학교 설정 → **교직원 명단**에 선생님들 이메일·이름·부서를 등록(붙여넣기 가능) → 각자 그 이메일로 가입.
