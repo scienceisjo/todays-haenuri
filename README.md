@@ -20,7 +20,7 @@ supabase/README.md   ← 설치 순서
 branding/            ← 원본 로고 (scripts/logo.mjs 로 배경 투명·정사각형 처리)
 scripts/             ← check(문법)·serve(로컬 미리보기)·logo·build-icons
 tests/               ← 순수 로직 테스트 + 화면 렌더링 스모크 (node --test)
-.github/workflows/pages.yml ← main 에 push 하면 public/ 을 Pages 로 배포
+scripts/deploy.mjs   ← npm run deploy: public/ 을 gh-pages 브랜치로 배포(GitHub Pages)
 _legacy/             ← v0.x 의 Node+SQLite 서버(참고용, 배포·테스트 대상 아님)
 ```
 
@@ -28,7 +28,7 @@ _legacy/             ← v0.x 의 Node+SQLite 서버(참고용, 배포·테스�
 
 1. Supabase 프로젝트를 만들고 **`supabase/README.md`** 순서대로 `schema.sql` 실행, Email "Confirm email" 끄기.
 2. `public/config.js` 에 프로젝트 URL 과 anon 키를 넣습니다.
-3. GitHub 저장소에 push → Settings → Pages → Source = **GitHub Actions**. 이후 push 할 때마다 자동 배포.
+3. `npm run deploy` → public/ 이 gh-pages 브랜치로 올라가고 GitHub Pages(Settings → Pages → Source: gh-pages)가 서빙합니다. 코드 수정 후에도 같은 명령으로 재배포.
 4. 배포 주소를 열어 관리자 이메일로 **가입** → 학교 설정 → **교직원 명단**에 선생님들 이메일·이름·부서 등록(붙여넣기 가능).
 5. 선생님들은 명단의 이메일로 **가입**하고, Edge 주소창의 앱 설치 아이콘(또는 사이드바 **바탕화면 앱으로 설치**)으로 설치 → `edge://apps` 에서 **장치 로그인 시 자동 시작** 켜기.
 
