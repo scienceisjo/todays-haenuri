@@ -1,0 +1,10 @@
+{
+ "id": "./", "name": "오늘의 해누리", "short_name": "오늘의 해누리", "lang": "ko",
+ "description": "해누리중학교 교직원용 학교 알림장", "start_url": "./", "scope": "./", "display": "standalone",
+ "background_color": "#f5f5f7", "theme_color": "#173658",
+ "icons": [
+   {"src":"./icon-192.png","sizes":"192x192","type":"image/png","purpose":"any"},
+   {"src":"./icon-512.png","sizes":"512x512","type":"image/png","purpose":"any"},
+   {"src":"./icon-512.png","sizes":"512x512","type":"image/png","purpose":"maskable"}
+ ]
+}

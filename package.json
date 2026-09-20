@@ -1,0 +1,17 @@
+{
+  "name": "todays-school",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "오늘의 해누리 — 교사용 학교 알림장 (GitHub Pages + Supabase)",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "preview": "node scripts/serve.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "check": "node scripts/check.mjs",
+    "icons": "node scripts/build-icons.mjs",
+    "logo": "node scripts/logo.mjs"
+  }
+}
