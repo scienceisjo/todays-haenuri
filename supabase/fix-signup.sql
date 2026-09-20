@@ -1,14 +1,17 @@
 -- =====================================================================
--- 가입 오류 수정 SQL (v2) — schema.sql 을 이미 실행한 프로젝트용. 전체를 SQL Editor 에 붙여 넣고 Run.
--- 원인: 이 프로젝트에 다른 앱의 `roster`(학생 명단) 표가 이미 있어서, 교직원 명단 표가 만들어지지 않았음.
--- 조치: 교직원 명단 표를 `staff_roster` 로 새로 만들고, 기존 학생 `roster` 표에 붙었던 정책·트리거를 걷어냄.
+-- 가입 오류 수정 SQL (v3) — schema.sql 을 이미 실행한 프로젝트용. 전체를 SQL Editor 에 붙여 넣고 Run.
+-- 이 파일은 오류로 끝나지 않습니다. 맨 아래 결과 표의 "진단결과" 열을 알려주세요.
 -- =====================================================================
 
--- 0) 기존 학생 roster 표에 이 앱이 붙였던 것 제거 (표 자체와 자료는 건드리지 않음)
-drop trigger if exists roster_log on public.roster;
-drop policy if exists roster_admin on public.roster;
+-- 0) 다른 앱의 roster(학생 명단) 표가 있으면, 이 앱이 붙였던 정책·트리거만 걷어낸다(표와 자료는 그대로)
+do $$ begin
+  if to_regclass('public.roster') is not null then
+    execute 'drop trigger if exists roster_log on public.roster';
+    execute 'drop policy if exists roster_admin on public.roster';
+  end if;
+end $$;
 
--- 1) 교직원 명단 표(새 이름)
+-- 1) 교직원 명단 표(새 이름: staff_roster)
 create table if not exists public.staff_roster (
   email text primary key check (email = lower(email) and email ~ '^\S+@\S+\.\S+$'),
   name text not null check (length(name) between 1 and 60),
@@ -102,12 +105,22 @@ begin
 end $$;
 grant execute on function public.can_register(text) to anon, authenticated;
 
--- 6) 진단: 가입을 흉내 내고 되돌린다(저장 안 함). 마지막 줄이 "진단 결과: staff 행 1개 생성됨" 이면 정상.
+-- 6) 진단: 시험 가입 → 확인 → 시험 계정 삭제. 오류가 나도 위의 수정은 그대로 남는다.
+create temp table if not exists diag_result (진단결과 text);
 do $$
-declare uid uuid := gen_random_uuid(); n int;
+declare uid uuid := gen_random_uuid(); n int; msg text; e text := 'diag-' || left(uid::text, 8) || '@haenuri.test';
 begin
-  insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, email_confirmed_at, is_sso_user, is_anonymous)
-  values (uid, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'chuseonjae@outlook.kr', 'x', '{"provider":"email","providers":["email"]}', '{"name":"진단"}', now(), now(), now(), false, false);
-  select count(*) into n from public.staff where id = uid and role = 'admin';
-  raise exception '진단 결과: staff 행 %개 생성됨, 관리자 권한 (정상 — 이 오류는 되돌리기용이며 아무것도 저장되지 않았습니다)', n;
+  begin
+    insert into public.staff_roster (email, name, department_id, role) values (e, '진단 계정', 'info', 'staff');
+    insert into auth.users (id, instance_id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, email_confirmed_at, is_sso_user, is_anonymous)
+    values (uid, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', e, 'x', '{"provider":"email","providers":["email"]}', '{"name":"진단"}', now(), now(), now(), false, false);
+    select count(*) into n from public.staff where id = uid and department_id = 'info';
+    delete from auth.users where id = uid;          -- 시험 계정 제거(staff 는 함께 삭제됨)
+    delete from public.staff_roster where email = e;  -- 시험 명단 제거
+    msg := case when n = 1 then '정상: 명단 기반 시험 가입 성공(부서 반영 확인), 시험 계정·명단은 삭제함. 이제 사이트에서 chuseonjae@outlook.kr 로 가입하세요.' else '주의: 가입은 됐지만 staff 행이 예상과 다릅니다.' end;
+  exception when others then
+    msg := format('실패: %s [%s]', sqlerrm, sqlstate);
+  end;
+  insert into diag_result values (msg);
 end $$;
+select 진단결과 from diag_result;
