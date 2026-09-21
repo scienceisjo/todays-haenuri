@@ -409,8 +409,10 @@ create policy duties_delete on public.meal_duties for delete to authenticated us
 create policy holidays_select on public.holidays for select to authenticated using (public.is_active_staff());
 create policy holidays_admin on public.holidays for all to authenticated using (public.is_admin()) with check (public.is_admin());
 
--- 설정: 로그인 화면(학교명·앱 이름·로고)에도 필요하므로 누구나 읽기(관리자 이메일 설정은 제외), 관리자만 변경
-create policy settings_read on public.settings for select to anon, authenticated using (key <> 'bootstrap_admin_email' or public.is_admin());
+-- 설정: 로그인 화면(학교명·앱 이름·로고)에도 필요하므로 누구나 읽기, 관리자만 변경.
+-- 예외: 관리자 이메일은 관리자만, 공용 계정 이메일(shared_login_email)은 로그인한 교직원만 읽는다.
+create policy settings_read on public.settings for select to anon, authenticated
+  using (public.is_admin() or (key <> 'bootstrap_admin_email' and (key <> 'shared_login_email' or auth.uid() is not null)));
 create policy settings_admin on public.settings for all to authenticated using (public.is_admin()) with check (public.is_admin());
 
 -- 변경 기록: 관리자만 읽기(쓰기는 트리거가 함)

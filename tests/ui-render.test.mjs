@@ -39,6 +39,12 @@ test('화면 렌더링 스모크: 모든 화면·입력 폼과 두 지도 자리
   assert.match(dialog.innerHTML,/id="date-row" class="[^"]*hidden|class="date-row full hidden"/);assert.match(dialog.innerHTML,/<details class="more-box mt" >/);assert.match(dialog.innerHTML,/게시하기/);
   ui.recordForm(null,'event');assert.match(dialog.innerHTML,/class="date-row full "/);assert.match(dialog.innerHTML,/value="2026-09-21"/);
   ui.recordForm(null,'deadline');assert.match(dialog.innerHTML,/마감 날짜/);
+  assert.equal((dialog.innerHTML.match(/name="department_id"/g)||[]).length,1);assert.ok(!dialog.innerHTML.includes('부서 없음 · 교직원 공통')); // 소속 부서가 있으면 부서 선택은 세부 설정에만
+  // 공용 계정(소속 부서 없음): 부서 선택이 폼 앞쪽에 하나만, 사이드바에 비밀번호 변경 없음
+  ui.S.user={...user,department_id:null,email:'hnralimi@haenuri.test'};ui.S.data.shared_login='hnralimi@haenuri.test';ui.S.page='home';ui.S.view='today';ui.render();
+  assert.match(root.innerHTML,/전 교직원 공용 계정/);assert.ok(!root.innerHTML.includes('data-action="password"'));assert.ok(!root.innerHTML.includes('테스트교사 선생님'));
+  ui.recordForm();assert.equal((dialog.innerHTML.match(/name="department_id"/g)||[]).length,1);assert.match(dialog.innerHTML,/부서 없음 · 교직원 공통/);
+  ui.S.user=user;ui.S.data.shared_login='';ui.render();assert.match(root.innerHTML,/data-action="password"/);assert.match(root.innerHTML,/테스트교사 선생님/);
   ui.recordForm(records[1]);assert.match(dialog.innerHTML,/name="scope"/);assert.match(dialog.innerHTML,/3\/6회차/);assert.ok(!dialog.innerHTML.includes('repeat_freq')); // 수정 화면: 범위 선택, 반복 설정 없음
   ui.detail('1');assert.match(dialog.innerHTML,/반복 · 3\/6회차/);
   ui.askDelete('자료 삭제','confirm-delete-record','1');assert.equal((dialog.innerHTML.match(/name="del-scope"/g)||[]).length,3);

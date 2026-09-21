@@ -9,7 +9,8 @@
 3. **Run** — 표·권한(RLS)·파일 저장소·가입 규칙·일괄 등록 함수가 만들어집니다. 다시 실행해도 안전합니다.
 4. **Authentication → Providers → Email → "Confirm email" 끄기** (명단으로 가입을 제한하므로 이메일 확인 절차가 필요 없습니다. 켜 두면 가입 후 메일 확인 전까지 로그인이 안 됩니다.)
 5. 앱(GitHub Pages 주소)을 열고 관리자 이메일로 **가입** → 학교 설정 → **교직원 명단**에 선생님들 이메일·이름·부서를 등록(붙여넣기 가능) → 각자 그 이메일로 가입.
-6. (선택) **`seed-2026.sql`** 을 SQL Editor 에서 실행 — 2026학년도 **창체의 날 8회**(교시별 운영)·학사 일정 21건·휴업일 16일이 들어갑니다. 관리자 가입 뒤에 실행해야 하며(작성자로 기록), 다시 실행해도 중복되지 않습니다. 이미 있는 가입 문제는 `fix-signup.sql`.
+6. (선택) **공용 계정**: `shared-account.sql` 실행 → 앱 가입 화면(또는 대시보드 Authentication → Users → Add user, Auto Confirm)에서 `hnralimi@haenuri.test` 로 계정 생성. 비밀번호는 6자 이상.
+7. (선택) **`seed-2026.sql`** 을 SQL Editor 에서 실행 — 2026학년도 **창체의 날 8회**(교시별 운영)·학사 일정 21건·휴업일 16일이 들어갑니다. 관리자 가입 뒤에 실행해야 하며(작성자로 기록), 다시 실행해도 중복되지 않습니다. 이미 있는 가입 문제는 `fix-signup.sql`.
 
 ## 어디에 무엇이 저장되나
 | 표 | 내용 |
@@ -20,7 +21,7 @@
 | records / record_series | 공지·일정, 반복 일정 규칙 |
 | attachments + Storage `attachments`(비공개) | 첨부 파일 메타·바이트. 경로 `<안내 id>/<파일 id>.<확장자>` |
 | meals / meal_duties | 급식, 급식지도(날짜마다 식당 입구 1명 + 식당 내부 1명) |
-| holidays / settings / activity_logs | 휴업일, 학교명·앱 이름·로고, 변경 기록(트리거) |
+| holidays / settings / activity_logs | 휴업일, 학교명·앱 이름·로고·공용 계정 이메일(shared_login_email), 변경 기록(트리거) |
 | Storage `branding`(공개) | 관리자가 올린 로고 |
 
 ## 권한 요약

@@ -8,7 +8,7 @@ const FRIENDLY = [
   [/meals_date_key|meal_duties_date_key|duplicate key value/i, '이 날짜에는 이미 등록된 자료가 있습니다. 기존 자료를 수정해주세요.'],
   [/Invalid login credentials/i, '이메일 또는 비밀번호를 확인해주세요.'],
   [/Email not confirmed/i, '이메일 확인이 필요한 계정입니다. 관리자에게 Supabase의 "Confirm email" 설정을 꺼 달라고 요청해주세요.'],
-  [/Password should be at least|weak_password|Password is too/i, '비밀번호는 12자 이상으로 입력해주세요.'],
+  [/Password should be at least|weak_password|Password is too/i, '비밀번호가 너무 짧습니다. 6자 이상으로 입력해주세요.'],
   [/User already registered|already been registered/i, '이미 가입된 이메일입니다. 로그인해주세요.'],
   [/Database error saving new user/i, '교직원 명단에 없는 이메일이거나 가입 규칙에 맞지 않습니다. 관리자에게 등록을 요청해주세요.'],
   [/JWT expired|invalid claim|refresh_token_not_found/i, '로그인이 만료되었습니다. 다시 로그인해주세요.'],
@@ -107,6 +107,7 @@ export function createData(config, supabaseLib) {
         departments, staff: staffRows.filter(s => s.active), staffAll: staffRows,
         records: records.map(r => ({ ...r, read: !!r.read, attachments: byRecord.get(r.id) || [] })),
         meals, duties, holidays,
+        shared_login: (settings.shared_login_email || '').toLowerCase(), // 전 교직원 공용 계정(있으면). 이 계정에서는 비밀번호 변경을 숨긴다
       };
     },
     records: {
