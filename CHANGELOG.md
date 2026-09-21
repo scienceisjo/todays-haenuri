@@ -3,6 +3,11 @@
 날짜는 한국 표준시(Asia/Seoul) 기준입니다.
 이 앱은 **교사용 학교 알림장**입니다. 선생님 각자의 PC를 켜면 자동으로 열려 아침에 필요한 정보를 한 화면에서 보는 것이 목적입니다(전자칠판용이 아님).
 
+## v1.2.0 — 2026-09-21 · PC 켜면 자동 실행
+
+- `public/autostart-on.bat` / `autostart-off.bat`: 시작 프로그램 폴더(shell:startup)에 Edge(없으면 Chrome·Whale)를 `--app=` 앱 창으로 여는 바로가기 ‘Todays-Haenuri’를 만들고/지운다. 관리자 권한 불필요, 브라우저를 못 찾으면 기본 브라우저용 .url 바로가기. UTF-8+`chcp 65001`, CRLF 고정(.gitattributes `*.bat -text`). 스크래치 폴더로 켜기/끄기 두 번씩 실행해 바로가기 대상·인수 확인.
+- 사이드바 **‘PC 켜면 자동 실행’** 안내창: 파일 내려받기 링크·실행 순서·“로그인 유지” 안내·설치 앱의 “로그인 시 앱 시작” 대안.
+
 ## v1.1.1 — 2026-09-21 · 공용 계정 지원 + 비밀번호 규칙 완화
 
 - **비밀번호 최소 길이 12자 → 6자**(Supabase 기본값과 같음): 가입·변경·재설정 폼과 오류 문구. 대시보드 Authentication → Providers → Email 의 "Minimum password length" 를 올려 두었다면 6으로.

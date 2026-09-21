@@ -22,7 +22,7 @@ test('화면 렌더링 스모크: 모든 화면·입력 폼과 두 지도 자리
   const db={me:user,auth:{session:async()=>user,onChange(){}},info:async()=>({school_name:'테스트중학교',app_name:'오늘의 테스트',logo:false}),bootstrap:async()=>data,admin:{staff:async()=>[user],logs:async()=>[],roster:async()=>[{email:'new@school.example',name:'새교사',department_id:'academic',role:'staff'}]},imports:{dutyTemplate:()=>'',scheduleTemplate:()=>''},records:{},meals:{},duties:{},attachments:{}};
   const source=(await readFile(new URL('../public/app.js',import.meta.url),'utf8')).split(String.fromCharCode(10)).filter(l=>!l.startsWith('import ')).join(String.fromCharCode(10));
   const AsyncFunction=Object.getPrototypeOf(async function(){}).constructor;
-  const run=new AsyncFunction('document','window','navigator','setInterval','createData','validateRepeat','occurrences','visibleRecord','owns','validateRecord',source+String.fromCharCode(10)+'return {S,render,recordForm,mealForm,dutyForm,userForm,detail,importDialog,importPreview,askDelete};');
+  const run=new AsyncFunction('document','window','navigator','setInterval','createData','validateRepeat','occurrences','visibleRecord','owns','validateRecord',source+String.fromCharCode(10)+'return {S,render,recordForm,mealForm,dutyForm,userForm,detail,importDialog,importPreview,askDelete,autostartDialog};');
   const ui=await run(document,{addEventListener(){},SCHOOL_CONFIG:{},supabase:{}},{},()=>0,()=>db,()=>null,()=>[],visibleRecord,owns,validateRecord);
   assert.match(root.innerHTML,/식당 입구/);assert.match(root.innerHTML,/식당 내부/);
   assert.match(root.innerHTML,/테스트교사/);assert.match(root.innerHTML,/두번째교사/);
@@ -61,6 +61,7 @@ test('화면 렌더링 스모크: 모든 화면·입력 폼과 두 지도 자리
   ui.recordForm();
   ui.mealForm(null);assert.match(dialog.innerHTML,/meal-form/);
   ui.dutyForm(null);assert.equal((dialog.innerHTML.match(/name="entrance_staff_id"/g)||[]).length,1);assert.equal((dialog.innerHTML.match(/name="inside_staff_id"/g)||[]).length,1);
+  ui.autostartDialog();assert.match(dialog.innerHTML,/autostart-on\.bat/);assert.match(dialog.innerHTML,/autostart-off\.bat/);assert.match(root.innerHTML,/data-action="autostart"/);
   ui.userForm('one');assert.match(dialog.innerHTML,/user-form/);assert.match(dialog.innerHTML,/one@example.test/);
   ui.S.roster=[{email:'new@school.example',name:'새교사',department_id:'academic',role:'staff'}];ui.S.page='admin';ui.render();assert.match(root.innerHTML,/roster-form/);assert.match(root.innerHTML,/새교사/);assert.match(root.innerHTML,/미가입/);
   ui.detail('0');assert.ok(!dialog.innerHTML.includes('<img onerror='));

@@ -429,3 +429,5 @@ details.more-box>summary .metadata{font-weight:400}
 .special-next{display:flex;align-items:center;gap:12px;margin-bottom:4px}
 .special-next .dday{min-width:54px;flex:0 0 auto}
 @media (max-width:640px){.date-row{grid-template-columns:1fr 1fr}.date-row .field:last-child{grid-column:1/-1}.dialog-footer .grow{flex-basis:100%}}
+ol.steps{margin:4px 0 0 18px;display:grid;gap:10px;font-size:.9rem;line-height:1.65}
+ol.steps li::marker{font-weight:700;color:var(--accent)}

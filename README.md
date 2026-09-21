@@ -19,6 +19,7 @@ supabase/schema.sql  ← 설치 SQL(표·RLS 권한·저장소·가입 규칙·�
 supabase/seed-2026.sql ← 2026학년도 초기 자료(창체의 날 8회·학사 일정·휴업일), 관리자 가입 후 1회 실행
 supabase/fix-signup.sql ← 이미 설치한 프로젝트의 가입 오류 수정(staff_roster·관리자 이메일)
 supabase/shared-account.sql ← 전 교직원 공용 계정 준비(명단·설정·정책), 계정은 앱/대시보드에서 생성
+public/autostart-on.bat · autostart-off.bat ← 선생님 PC 시작 프로그램에 앱 창 바로가기 추가/제거(사이드바 ‘PC 켜면 자동 실행’에서 내려받음)
 supabase/README.md   ← 설치 순서
 branding/            ← 원본 로고 (scripts/logo.mjs 로 배경 투명·정사각형 처리)
 scripts/             ← check(문법)·serve(로컬 미리보기)·logo·build-icons
