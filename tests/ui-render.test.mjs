@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { visibleRecord, owns } from '../public/lib/core.js';
+import { visibleRecord, owns, validateRecord } from '../public/lib/core.js';
 
 test('화면 렌더링 스모크: 모든 화면·입력 폼과 두 지도 자리, 문자열 이스케이프',async()=>{
   // This is a JavaScript rendering smoke test, not browser or visual QA.
@@ -22,8 +22,8 @@ test('화면 렌더링 스모크: 모든 화면·입력 폼과 두 지도 자리
   const db={me:user,auth:{session:async()=>user,onChange(){}},info:async()=>({school_name:'테스트중학교',app_name:'오늘의 테스트',logo:false}),bootstrap:async()=>data,admin:{staff:async()=>[user],logs:async()=>[],roster:async()=>[{email:'new@school.example',name:'새교사',department_id:'academic',role:'staff'}]},imports:{dutyTemplate:()=>'',scheduleTemplate:()=>''},records:{},meals:{},duties:{},attachments:{}};
   const source=(await readFile(new URL('../public/app.js',import.meta.url),'utf8')).split(String.fromCharCode(10)).filter(l=>!l.startsWith('import ')).join(String.fromCharCode(10));
   const AsyncFunction=Object.getPrototypeOf(async function(){}).constructor;
-  const run=new AsyncFunction('document','window','navigator','setInterval','createData','validateRepeat','occurrences','visibleRecord','owns',source+String.fromCharCode(10)+'return {S,render,recordForm,mealForm,dutyForm,userForm,detail,importDialog,importPreview,askDelete};');
-  const ui=await run(document,{addEventListener(){},SCHOOL_CONFIG:{},supabase:{}},{},()=>0,()=>db,()=>null,()=>[],visibleRecord,owns);
+  const run=new AsyncFunction('document','window','navigator','setInterval','createData','validateRepeat','occurrences','visibleRecord','owns','validateRecord',source+String.fromCharCode(10)+'return {S,render,recordForm,mealForm,dutyForm,userForm,detail,importDialog,importPreview,askDelete};');
+  const ui=await run(document,{addEventListener(){},SCHOOL_CONFIG:{},supabase:{}},{},()=>0,()=>db,()=>null,()=>[],visibleRecord,owns,validateRecord);
   assert.match(root.innerHTML,/식당 입구/);assert.match(root.innerHTML,/식당 내부/);
   assert.match(root.innerHTML,/테스트교사/);assert.match(root.innerHTML,/두번째교사/);
   assert.ok(!root.innerHTML.includes('<img onerror='));assert.match(root.innerHTML,/&lt;img onerror=/);
@@ -34,6 +34,11 @@ test('화면 렌더링 스모크: 모든 화면·입력 폼과 두 지도 자리
   ui.S.page='admin';ui.render();assert.match(root.innerHTML,/holiday-form/);assert.match(root.innerHTML,/delete-holiday/);
   ui.S.page='home';ui.S.view='week';ui.render();assert.match(root.innerHTML,/week-grid/);
   ui.recordForm();assert.match(dialog.innerHTML,/record-form/);assert.match(dialog.innerHTML,/repeat_freq/);assert.equal((dialog.innerHTML.match(/name="repeat_weekday"/g)||[]).length,7);
+  // 가벼운 폼: 유형 칩 6개, 필수 입력은 제목 하나, 공지사항은 날짜 줄이 숨겨짐, 세부 설정은 접힘
+  assert.equal((dialog.innerHTML.match(/type="radio" name="kind"/g)||[]).length,6);assert.equal((dialog.innerHTML.match(/ required/g)||[]).length,1);
+  assert.match(dialog.innerHTML,/id="date-row" class="[^"]*hidden|class="date-row full hidden"/);assert.match(dialog.innerHTML,/<details class="more-box mt" >/);assert.match(dialog.innerHTML,/게시하기/);
+  ui.recordForm(null,'event');assert.match(dialog.innerHTML,/class="date-row full "/);assert.match(dialog.innerHTML,/value="2026-09-21"/);
+  ui.recordForm(null,'deadline');assert.match(dialog.innerHTML,/마감 날짜/);
   ui.recordForm(records[1]);assert.match(dialog.innerHTML,/name="scope"/);assert.match(dialog.innerHTML,/3\/6회차/);assert.ok(!dialog.innerHTML.includes('repeat_freq')); // 수정 화면: 범위 선택, 반복 설정 없음
   ui.detail('1');assert.match(dialog.innerHTML,/반복 · 3\/6회차/);
   ui.askDelete('자료 삭제','confirm-delete-record','1');assert.equal((dialog.innerHTML.match(/name="del-scope"/g)||[]).length,3);

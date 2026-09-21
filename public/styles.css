@@ -408,3 +408,24 @@ dialog.wide .import-table td:nth-child(3){white-space:nowrap}
 .pill-x{border:0;background:transparent;color:var(--muted-2);padding:0 4px;font-size:.9rem;line-height:1;border-radius:50%;cursor:pointer}
 .pill-x:hover{background:var(--red-tint);color:var(--red)}
 #install-btn[hidden]{display:none}
+
+/* 가벼운 안내 등록 폼: 유형 칩 → 제목 → (날짜 줄) → 첨부, 나머지는 ‘세부 설정’에 접어 둠 */
+.hidden{display:none!important}
+.mb{margin-bottom:16px}
+.grow{flex:1 1 auto;min-width:0;align-self:center}
+.kind-picks{display:flex;flex-wrap:wrap;gap:6px}
+.kind-picks .chip-check{padding:7px 13px;font-weight:550}
+.kind-hint{margin:10px 0 16px;font-size:.8rem;color:var(--muted);line-height:1.5}
+.date-row{grid-column:1/-1;display:grid;grid-template-columns:1.3fr 1fr 1.3fr;gap:12px}
+.date-row .field{min-width:0}
+details.more-box{border-top:1px solid var(--sep-2);padding-top:12px}
+details.more-box>summary{cursor:pointer;font-weight:600;font-size:.9rem;display:flex;flex-wrap:wrap;gap:8px;align-items:center;list-style:none;color:var(--ink-2)}
+details.more-box>summary::-webkit-details-marker{display:none}
+details.more-box>summary::before{content:"";width:7px;height:7px;border-right:2px solid var(--muted-2);border-bottom:2px solid var(--muted-2);transform:rotate(-45deg);transition:transform .15s;margin-right:2px}
+details[open].more-box>summary::before{transform:rotate(45deg)}
+details.more-box>summary .metadata{font-weight:400}
+.link-btn{border:0;background:transparent;padding:0;color:var(--accent);font-size:inherit;cursor:pointer;font-weight:500}
+.link-btn:hover{text-decoration:underline;background:transparent}
+.special-next{display:flex;align-items:center;gap:12px;margin-bottom:4px}
+.special-next .dday{min-width:54px;flex:0 0 auto}
+@media (max-width:640px){.date-row{grid-template-columns:1fr 1fr}.date-row .field:last-child{grid-column:1/-1}.dialog-footer .grow{flex-basis:100%}}

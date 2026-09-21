@@ -16,6 +16,8 @@ public/              ← GitHub Pages 로 배포되는 앱 전체 (빌드 없음
   vendor/supabase.js ← supabase-js 2 (로컬 파일, CDN 의존 없음)
   logo.png, icon-192/512.png ← 학교 엠블럼(branding/logo.png 에서 생성)
 supabase/schema.sql  ← 설치 SQL(표·RLS 권한·저장소·가입 규칙·일괄 등록/반복/회차 함수)
+supabase/seed-2026.sql ← 2026학년도 초기 자료(창체의 날 8회·학사 일정·휴업일), 관리자 가입 후 1회 실행
+supabase/fix-signup.sql ← 이미 설치한 프로젝트의 가입 오류 수정(staff_roster·관리자 이메일)
 supabase/README.md   ← 설치 순서
 branding/            ← 원본 로고 (scripts/logo.mjs 로 배경 투명·정사각형 처리)
 scripts/             ← check(문법)·serve(로컬 미리보기)·logo·build-icons

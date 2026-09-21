@@ -1,6 +1,6 @@
 import { createData } from './lib/data.js';
 import { validateRepeat, occurrences } from './lib/series.js';
-import { visibleRecord, owns } from './lib/core.js';
+import { visibleRecord, owns, validateRecord } from './lib/core.js';
 const $=s=>document.querySelector(s), root=$('#app'), dialog=$('#dialog');
 const db=createData(window.SCHOOL_CONFIG, window.supabase);
 const S={user:null,data:null,all:[],roster:[],date:'',view:'today',page:'home',manage:[],users:[],logs:[],search:'',kind:'',dep:'',offline:false,lastSync:'',serverOffset:0,dutyMonth:'',dutyUnassigned:false};
@@ -72,7 +72,7 @@ function render(){
 function periodControls(){return `<div class="page-controls"><div class="segmented" role="group" aria-label="조회 기간">${[['today','오늘'],['tomorrow','내일'],['week','이번 주']].map(([v,l])=>`<button data-action="period" data-view="${v}" class="${S.view===v?'active':''}" aria-pressed="${S.view===v}">${l}</button>`).join('')}</div><div class="date-control"><span class="small muted">날짜 선택</span><input type="date" value="${S.date}" id="date-picker" aria-label="조회 날짜"><button class="ghost" data-action="nav" data-page="calendar">전체 일정 →</button></div></div>`;}
 function homeView(){
   const r=S.data.records,t=S.date;if(S.view==='week')return periodControls()+weekView();
-  const events=sorted(r.filter(x=>x.kind==='event'&&onDay(x))), broadcasts=sorted(r.filter(x=>x.kind==='broadcast'&&onDay(x))), deadlines=sorted(r.filter(x=>x.kind==='deadline'&&x.event_date>=t&&x.event_date<=shift(t,7))), globals=r.filter(x=>x.kind==='notice'&&x.channel==='all'), departments=r.filter(x=>x.kind==='notice'&&x.channel==='department'), special=r.filter(x=>x.kind==='special'&&onDay(x)), urgent=r.find(x=>x.importance==='urgent'&&(!x.event_date||onDay(x)));
+  const events=sorted(r.filter(x=>x.kind==='event'&&onDay(x))), broadcasts=sorted(r.filter(x=>x.kind==='broadcast'&&onDay(x))), deadlines=sorted(r.filter(x=>x.kind==='deadline'&&x.event_date>=t&&x.event_date<=shift(t,7))), globals=r.filter(x=>x.kind==='notice'&&x.channel==='all'), departments=r.filter(x=>x.kind==='notice'&&x.channel==='department'), special=r.filter(x=>x.kind==='special'&&onDay(x)), nextSpecial=special.length?null:sorted(r.filter(x=>x.kind==='special'&&x.event_date>t))[0], urgent=r.find(x=>x.importance==='urgent'&&(!x.event_date||onDay(x)));
   const meal=S.data.meals.find(x=>x.date===t),duty=S.data.duties.find(x=>x.date===t);
   const row=x=>`<button class="row-button" data-action="detail" data-id="${x.id}"><div class="row-line">${badge(x)}<span class="row-title">${h(x.title)}</span>${x.read?'':`<span class="pill">새 안내</span>`}</div><div class="row-meta">${h(x.department_name||'교직원')} · ${h(x.author_name)}</div></button>`;
   const eventContent=events.slice(0,4).map(x=>`<button class="row-button schedule-row" data-action="detail" data-id="${x.id}"><span class="schedule-time">${h(x.start_time||'종일')}</span><div class="schedule-info"><div class="row-title">${h(x.title)}</div><div class="row-meta">${h(x.location||x.department_name||'')}</div></div></button>`).join('');
@@ -80,7 +80,7 @@ function homeView(){
   return periodControls()+`${urgent?`<div class="notice-strip">${icon('bell')}<span class="pill">꼭 확인</span><button data-action="detail" data-id="${urgent.id}">${h(urgent.title)}</button>${icon('chevron')}</div>`:''}
   <div class="dashboard"><div class="column">${card('행사·회의','clock',eventContent,more('event'),events.length)}${card('교직원 전체 공지','notice',globals.slice(0,3).map(row).join(''),more('notice'))}${card('부서별 안내','folder',departments.slice(0,3).map(x=>`<button class="row-button" data-action="detail" data-id="${x.id}"><div class="dept-row"><span class="dept-label">${h(x.department_name||'교직원')}</span><span class="row-title">${h(x.title)}</span></div></button>`).join(''),more('notice'))}</div>
   <div class="column">${card('챙겨야 할 제출 기한','check',dueContent,more('deadline'),deadlines.length)}${card('방송 안내','broadcast',broadcasts.slice(0,3).map(x=>`<button class="row-button" data-action="detail" data-id="${x.id}"><div class="row-line"><span class="schedule-time">${h(x.start_time||'종일')}</span><span class="row-title">${h(x.title)}</span></div><div class="row-meta">${h(x.content.slice(0,55))}</div></button>`).join(''),more('broadcast'))}
-  <section class="card special-card"><div class="card-head"><h2>${icon('file')}창체의 날 시간표</h2>${more('special','전체')}</div><div class="card-body">${special.length?`<div class="special-title">${h(special[0].title)}</div><p class="special-body">${h(special[0].content.split('\n').slice(0,3).join('\n'))}</p><button class="special-open btn-icon" data-action="detail" data-id="${special[0].id}">${icon('file')}교육 내용·첨부 시간표 보기</button>${special.length>1?`<p class="metadata mt">그 외 ${special.length-1}건</p>`:''}`:'<p class="empty">선택한 날에 등록된 시간표가 없습니다.</p>'}</div></section></div>
+  <section class="card special-card"><div class="card-head"><h2>${icon('file')}창체의 날 시간표</h2>${more('special','전체')}</div><div class="card-body">${special.length?`<div class="special-title">${h(special[0].title)}</div><p class="special-body">${h(special[0].content.split('\n').slice(0,3).join('\n'))}</p><button class="special-open btn-icon" data-action="detail" data-id="${special[0].id}">${icon('file')}교육 내용·첨부 시간표 보기</button>${special.length>1?`<p class="metadata mt">그 외 ${special.length-1}건</p>`:''}`:nextSpecial?`<div class="special-next"><span class="dday">D-${days(nextSpecial.event_date,t)}</span><div><div class="special-title">${h(nextSpecial.title)}</div><div class="row-meta">${dateLabel(nextSpecial.event_date)}</div></div></div><p class="special-body">${h(nextSpecial.content.split('\n').slice(0,3).join('\n'))}</p><button class="special-open btn-icon" data-action="detail" data-id="${nextSpecial.id}">${icon('file')}다음 창체의 날 자세히</button>`:'<p class="empty">등록된 창체 시간표가 없습니다.</p>'}</div></section></div>
   <div class="column"><section class="card meal-card"><div class="card-head"><h2>${icon('meal')}${S.view==='tomorrow'?'내일':'오늘'}의 급식</h2><button class="ghost" data-action="meal" data-id="${meal?.id||''}">${meal?'자세히':'등록'}</button></div><div class="card-body">${meal?`<div class="meal-header">중식 · ${shortDate(t)}</div><ul class="menu">${meal.menu.split('\n').filter(Boolean).map(v=>`<li>${h(v)}</li>`).join('')}</ul><div class="meal-footer"><button class="ghost" data-action="meal" data-id="${meal.id}">알레르기 정보·비고 확인</button></div>`:'<p class="empty">급식 정보가 등록되지 않았습니다.</p>'}</div></section>
   <section class="card duty-card"><div class="card-head"><h2>${icon('users')}${S.view==='tomorrow'?'내일':'금일'} 급식지도</h2><div class="row-actions"><button class="ghost" data-action="nav" data-page="duties">월간표</button><button class="ghost" data-action="duty" data-id="${duty?.id||''}">${duty?'자세히':'등록'}</button></div></div><div class="card-body">${[['식당 입구',duty?.entrance_name,duty?.entrance_staff_id],['식당 내부',duty?.inside_name,duty?.inside_staff_id]].map(([place,name,id])=>`<div class="duty-slot ${id===S.user.id?'mine':''}"><span>${place}</span><strong>${h(name||'담당자 미지정')}${id===S.user.id?' · 나':''}</strong></div>`).join('')}${duty?.publish_at>now().toISOString()?`<p class="metadata">예약 게시 · ${shortDate(koreaInput(duty.publish_at).slice(0,10))} ${fmtTime(duty.publish_at)} 공개</p>`:''}${duty?.note?`<p class="metadata">${h(duty.note)}</p>`:''}</div></section>
   ${card('학사 일정','calendar',miniCalendar(),'<button class="ghost" data-action="nav" data-page="calendar">전체</button>')}</div></div>`;
@@ -107,33 +107,47 @@ function openDialog(title,body,footer='',{wide=false}={}){
   dialog.innerHTML=`<header class="dialog-header"><h2 id="dialog-title">${h(title)}</h2><button class="ghost" data-action="close" aria-label="닫기">${icon('close')}</button></header><div class="dialog-body">${body}</div>${footer?`<footer class="dialog-footer">${footer}</footer>`:''}`;
   if(!dialog.open)dialog.showModal();
 }
-function field(label,name,value='',type='text',opts={}){return `<div class="field ${opts.full?'full':''}"><label for="f-${name}">${label}${opts.required?' *':''}</label>${type==='textarea'?`<textarea id="f-${name}" name="${name}" ${opts.required?'required':''}>${h(value)}</textarea>`:`<input id="f-${name}" name="${name}" type="${type}" value="${h(value)}" ${opts.required?'required':''} ${opts.extra||''}>`}${opts.help?`<span class="help">${opts.help}</span>`:''}</div>`;}
+function field(label,name,value='',type='text',opts={}){return `<div class="field ${opts.full?'full':''}"><label for="f-${name}">${label}${opts.required?' *':''}</label>${type==='textarea'?`<textarea id="f-${name}" name="${name}" ${opts.required?'required':''} ${opts.extra||''}>${h(value)}</textarea>`:`<input id="f-${name}" name="${name}" type="${type}" value="${h(value)}" ${opts.required?'required':''} ${opts.extra||''}>`}${opts.help?`<span class="help">${opts.help}</span>`:''}</div>`;}
 function select(label,name,values,selected='',full=false){return `<div class="field ${full?'full':''}"><label for="f-${name}">${label}</label><select id="f-${name}" name="${name}">${values.map(([v,l])=>`<option value="${h(v)}" ${String(v)===String(selected??'')?'selected':''}>${h(l)}</option>`).join('')}</select></div>`;}
 const depOptions=()=>S.data.departments.map(d=>[d.id,d.name]);
+const kindHints={notice:'제목만 적어도 바로 게시됩니다. 내용·첨부는 선택입니다.',event:'날짜와 시간을 정하면 그날 홈 화면의 행사·회의 칸에 나타납니다.',deadline:'마감 날짜를 정하면 7일 전부터 D-day 로 나타납니다.',broadcast:'방송 날짜·시간을 정하면 그날 방송 안내 칸에 나타납니다.',academic:'달력에 표시됩니다. 여러 날이면 세부 설정에서 종료 날짜를 넣어주세요.',special:'그날 홈 화면의 창체의 날 시간표 칸에 나타납니다. 교시별 운영을 내용에 적어주세요.'};
+const dateLabels=k=>k==='deadline'?['마감 날짜','마감 시간']:k==='broadcast'?['방송 날짜','방송 시간']:['날짜','시작 시간'];
+const submitLabels={now:'게시하기',schedule:'예약하기',draft:'임시저장',hidden:'저장'};
 function recordForm(r=null,kind='notice'){
   const isEdit=!!r;kind=r?.kind||kind;
-  const v=r||{kind,title:'',content:'',channel:'all',department_id:S.user.department_id,target_department_id:'',importance:'normal',event_date:kind==='notice'?'':S.date,end_date:'',start_time:'',end_time:'',location:'',link:'',state:'published',publish_at:now().toISOString(),expire_at:''};
+  const v=r||{kind,title:'',content:'',channel:'all',department_id:S.user.department_id,target_department_id:'',importance:'normal',event_date:S.date,end_date:'',start_time:'',end_time:'',location:'',link:'',state:'published',publish_at:now().toISOString(),expire_at:''};
   const mode=v.state==='draft'?'draft':v.publish_at>now().toISOString()?'schedule':v.state==='hidden'?'hidden':'now';
-  openDialog(isEdit?'안내 수정':'새 안내 등록',`<form id="record-form" data-id="${r?.id||''}" data-version="${r?.version||''}"><div class="form-grid">
-    ${isEdit&&r.series_id?`<div class="field full series-scope">${select('적용 범위 (반복 일정 · '+((r.series_index??0)+1)+'/'+(r.series_total||'?')+'회차)','scope',[['single','이 회차만'],['following','이 회차부터 이후 회차 모두'],['all','시리즈 전체']],'single',true)}<span class="help">이후·전체를 고르면 각 회차의 날짜는 그대로 두고 제목·내용·시간·장소·중요도만 함께 바뀝니다.</span></div>`:''}
-    ${select('유형','kind',Object.entries(labels),kind)}${select('공지 구분','channel',[['all','교직원 전체 공지'],['department','부서 안내']],v.channel)}
-    ${field('제목','title',v.title,'text',{required:true,full:true,extra:'maxlength="160"'})}${field('내용 / 교육 내용','content',v.content,'textarea',{full:true})}
-    ${select('담당 부서','department_id',depOptions(),v.department_id)}${select('열람 대상','target_department_id',[['','전체 교직원'],...depOptions()],v.target_department_id)}
-    ${select('중요도','importance',Object.entries(importance),v.importance)}${field('장소','location',v.location)}
-    ${field('일정 날짜','event_date',v.event_date,'date',{help:'행사·회의, 방송, 제출 기한, 학사 일정, 창체는 필수'})}${field('종료 날짜','end_date',v.end_date,'date',{help:'여러 날에 걸친 일정일 때 입력'})}
-    ${field('시작 / 마감 시간','start_time',v.start_time,'time')}${field('종료 시간','end_time',v.end_time,'time')}
-    ${field('관련 링크','link',v.link,'url',{full:true})}
-    ${select('게시 방법','publish_mode',[['now','즉시 게시'],['schedule','예약 게시'],['draft','임시저장'],...(isEdit?[['hidden','숨김']]:[])],mode)}${field('게시 종료','expire_at',koreaInput(v.expire_at),'datetime-local')}
-    ${field('예약 시각','publish_at',koreaInput(v.publish_at),'datetime-local',{help:'예약 게시를 선택한 경우 적용 · 한국 시간',full:true})}
-    <div class="field full"><label for="f-files">첨부파일</label><input id="f-files" name="files" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls,.hwp,.hwpx,.doc,.docx,.txt,.csv"><span class="help">파일별 10MB 이하 · PDF·이미지는 미리 보기, 한글·엑셀·워드는 내려받기</span></div>
-    ${isEdit&&r.attachments?.length?`<div class="full field"><span>기존 첨부파일</span>${r.attachments.map(a=>`<span class="small">${h(a.original_name)}</span>`).join('')}<span class="help">기존 파일 삭제는 안내 상세 화면에서 할 수 있습니다.</span></div>`:''}
-    ${!isEdit?`<details class="field full repeat-box"><summary>반복 일정으로 등록 <span class="metadata">매주·매월 · 종료일 또는 횟수 · 휴업일 제외</span></summary><div class="form-grid mt-s">
-      ${select('반복 주기','repeat_freq',[['none','반복 없음'],['weekly','매주'],['monthly','매월']],'none')}${field('간격','repeat_interval','1','number',{extra:'min="1" max="12"',help:'1 = 매주·매월, 2 = 격주·격월'})}
-      <div class="field full"><span class="label-text">요일 (매주일 때 · 여러 개 가능, 비우면 시작 날짜의 요일)</span><div class="weekday-picks">${['일','월','화','수','목','금','토'].map((d,i)=>`<label class="chip-check"><input type="checkbox" name="repeat_weekday" value="${i}">${d}</label>`).join('')}</div></div>
-      ${select('종료 방식','repeat_end',[['until','종료 날짜까지'],['count','횟수만큼']],'until')}${field('종료 날짜','repeat_until','','date')}${field('횟수','repeat_count','10','number',{extra:'min="1" max="200"'})}
-      <label class="check full"><input type="checkbox" name="repeat_skip_holidays" checked>휴업일은 건너뛰기 (학교 설정의 휴업일 기준)</label>
-      <span class="help full">회차마다 개별 일정으로 만들어져 회차별로 수정·취소할 수 있습니다. 반복 일정에는 첨부를 붙일 수 없으니 등록 후 회차를 열어 추가해주세요.</span></div></details>`:''}
-    </div><div class="form-error" role="alert"></div><div class="dialog-footer"><button type="button" data-action="close">취소</button><button type="submit" class="primary">${isEdit?'수정 저장':'안내 저장'}</button></div></form>`);
+  const [dl,tl]=dateLabels(kind);
+  // 수정할 때 세부 설정에 값이 있으면 펼쳐서 보여준다
+  const advanced=isEdit&&!!(v.channel!=='all'||v.target_department_id||v.importance!=='normal'||v.end_date||v.end_time||v.link||mode!=='now'||v.expire_at);
+  openDialog(isEdit?'안내 수정':'새 안내',`<form id="record-form" data-id="${r?.id||''}" data-version="${r?.version||''}">
+    ${isEdit&&r.series_id?`<div class="form-grid mb">${select('적용 범위 (반복 일정 · '+((r.series_index??0)+1)+'/'+(r.series_total||'?')+'회차)','scope',[['single','이 회차만'],['following','이 회차부터 이후 회차 모두'],['all','시리즈 전체']],'single',true)}<span class="help full">이후·전체를 고르면 각 회차의 날짜는 그대로 두고 제목·내용·시간·장소·중요도만 함께 바뀝니다.</span></div>`:''}
+    <div class="kind-picks" role="radiogroup" aria-label="안내 유형">${Object.entries(labels).map(([k,l])=>`<label class="chip-check"><input type="radio" name="kind" value="${k}" ${k===kind?'checked':''}>${l}</label>`).join('')}</div>
+    <p class="help kind-hint" id="kind-hint">${kindHints[kind]}</p>
+    <div class="form-grid">
+      ${field('제목','title',v.title,'text',{required:true,full:true,extra:'maxlength="160" placeholder="예: 9월 교직원 회의 안내"'})}
+      ${field('내용','content',v.content,'textarea',{full:true,extra:'rows="4" placeholder="필요할 때만 적어주세요 (선택)"'})}
+      <div class="date-row full ${kind==='notice'?'hidden':''}" id="date-row">${field(dl,'event_date',v.event_date||'','date')}${field(tl,'start_time',v.start_time||'','time')}${field('장소','location',v.location||'','text',{extra:'maxlength="200" placeholder="선택"'})}</div>
+      <div class="field full"><label for="f-files">첨부파일 <span class="metadata">선택 · 파일별 10MB 이하 · PDF·이미지는 미리 보기</span></label><input id="f-files" name="files" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls,.hwp,.hwpx,.doc,.docx,.txt,.csv"></div>
+      ${isEdit&&r.attachments?.length?`<div class="full field"><span class="label-text">기존 첨부파일</span>${r.attachments.map(a=>`<span class="small">${h(a.original_name)}</span>`).join('')}<span class="help">기존 파일 삭제는 안내 상세 화면에서 할 수 있습니다.</span></div>`:''}
+    </div>
+    <details class="more-box mt" ${advanced?'open':''}><summary>세부 설정 <span class="metadata">공지 구분 · 열람 대상 · 중요도 · 종료 날짜 · 링크 · 예약 · 반복</span></summary><div class="form-grid mt-s">
+      ${select('공지 구분','channel',[['all','교직원 전체 공지'],['department','부서 안내']],v.channel)}${select('담당 부서','department_id',depOptions(),v.department_id)}
+      ${select('열람 대상','target_department_id',[['','전체 교직원'],...depOptions()],v.target_department_id||'')}${select('중요도','importance',Object.entries(importance),v.importance)}
+      ${field('종료 날짜','end_date',v.end_date||'','date',{help:'여러 날에 걸친 일정일 때'})}${field('종료 시간','end_time',v.end_time||'','time')}
+      ${field('관련 링크','link',v.link||'','url',{full:true,extra:'placeholder="https://"'})}
+      ${select('게시 방법','publish_mode',[['now','즉시 게시'],['schedule','예약 게시'],['draft','임시저장'],...(isEdit?[['hidden','숨김']]:[])],mode)}${field('예약 시각','publish_at',koreaInput(v.publish_at),'datetime-local',{help:'예약 게시일 때만 · 한국 시간'})}
+      ${field('게시 종료','expire_at',koreaInput(v.expire_at),'datetime-local',{help:'비우면 계속 게시됩니다',full:true})}
+      ${!isEdit?`<details class="field full repeat-box"><summary>반복 일정으로 등록 <span class="metadata">매주·매월 · 종료일 또는 횟수 · 휴업일 제외</span></summary><div class="form-grid mt-s">
+        ${select('반복 주기','repeat_freq',[['none','반복 없음'],['weekly','매주'],['monthly','매월']],'none')}${field('간격','repeat_interval','1','number',{extra:'min="1" max="12"',help:'1 = 매주·매월, 2 = 격주·격월'})}
+        <div class="field full"><span class="label-text">요일 (매주일 때 · 여러 개 가능, 비우면 시작 날짜의 요일)</span><div class="weekday-picks">${['일','월','화','수','목','금','토'].map((d,i)=>`<label class="chip-check"><input type="checkbox" name="repeat_weekday" value="${i}">${d}</label>`).join('')}</div></div>
+        ${select('종료 방식','repeat_end',[['until','종료 날짜까지'],['count','횟수만큼']],'until')}${field('종료 날짜','repeat_until','','date')}${field('횟수','repeat_count','10','number',{extra:'min="1" max="200"'})}
+        <label class="check full"><input type="checkbox" name="repeat_skip_holidays" checked>휴업일은 건너뛰기 (학교 설정의 휴업일 기준)</label>
+        <span class="help full">회차마다 개별 일정으로 만들어져 회차별로 수정·취소할 수 있습니다. 반복 일정에는 첨부를 붙일 수 없으니 등록 후 회차를 열어 추가해주세요.</span></div></details>`:''}
+    </div></details>
+    <div class="form-error" role="alert"></div>
+    <div class="dialog-footer"><span class="metadata grow">${isEdit?'':`다른 등록: <button type="button" class="link-btn" data-action="choose-type" data-kind="meal">급식</button> · <button type="button" class="link-btn" data-action="choose-type" data-kind="duty">급식지도</button> · <button type="button" class="link-btn" data-action="import" data-type="schedule">일정 파일(CSV·엑셀)</button> · <button type="button" class="link-btn" data-action="import" data-type="duties">급식지도 파일</button>`}</span><button type="button" data-action="close">취소</button><button type="submit" class="primary" id="record-submit">${isEdit?'수정 저장':submitLabels[mode]}</button></div></form>`);
+  setTimeout(()=>$('#f-title')?.focus(),0);
 }
 function attachmentRows(r){return `<div class="file-list">${r.attachments?.map(a=>`<div class="file-row"><span>${icon('file')} ${h(a.original_name)} <span class="metadata">${(a.byte_size/1024).toFixed(0)}KB</span></span><div class="actions">${(a.mime.startsWith('image/')||a.mime==='application/pdf')?`<button data-action="preview" data-id="${a.id}" data-record="${r.id}">미리 보기</button>`:''}<button data-action="download-file" data-id="${a.id}" data-record="${r.id}">다운로드</button>${canEdit(r)&&!r.deleted_at?`<button class="ghost" data-action="delete-file" data-id="${a.id}" data-record="${r.id}" aria-label="${h(a.original_name)} 삭제">삭제</button>`:''}</div></div>`).join('')||''}</div>`;}
 function detail(id){const r=byId(id);if(!r)return;const manage=canEdit(r);openDialog(r.title,`<div class="detail-meta"><span class="pill">${labels[r.kind]}</span>${badge(r)}${r.series_id?`<span class="pill sched">반복 · ${(r.series_index??0)+1}/${r.series_total||'?'}회차</span>`:''}<span>${h(r.department_name||'교직원')} · ${h(r.author_name)}</span>${manage?`<span class="pill">${stateLabel(r)}</span>`:''}</div>${r.event_date?`<div class="detail-info">${dateLabel(r.event_date)}${r.end_date&&r.end_date!==r.event_date?` ~ ${shortDate(r.end_date)}`:''}　${h(r.start_time||'')}${r.end_time?` ~ ${h(r.end_time)}`:''}${r.location?`<br>장소: ${h(r.location)}`:''}</div>`:''}<div class="detail-content">${h(r.content||'추가 설명이 없습니다.')}</div>${r.link?`<p class="mt break"><a href="${h(r.link)}" target="_blank" rel="noopener noreferrer">관련 링크 열기 →</a></p>`:''}${attachmentRows(r)}<div class="detail-actions">${!r.deleted_at&&r.state==='published'&&r.publish_at<=now().toISOString()&&(!r.expire_at||r.expire_at>now().toISOString())?`<button class="${r.read?'':'primary'} btn-icon" data-action="mark-read" data-id="${r.id}">${icon('check')}${r.read?'확인한 안내입니다':'확인했습니다'}</button>`:''}${manage&&!r.deleted_at?`<button data-action="edit-record" data-id="${r.id}">수정</button><button class="danger" data-action="delete-record" data-id="${r.id}">삭제</button>`:''}</div>`);}
@@ -201,7 +215,6 @@ function importPreview(p){
       <div class="form-error" role="alert"></div>
       <div class="dialog-footer"><button type="button" data-action="import" data-type="${type}">다른 파일 선택</button><button type="submit" class="primary" ${s.valid+s.skipped===0?'disabled':''}>저장</button></div></form>`,'',{wide:true});
 }
-function createChooser(){openDialog('무엇을 등록할까요?',`<div class="form-grid">${[...Object.entries(labels),['meal','급식'],['duty','급식지도']].map(([k,l])=>`<button class="btn-icon" data-action="choose-type" data-kind="${k}">${icon(k==='meal'?'meal':k==='duty'?'users':k==='event'?'calendar':'file')}${l}</button>`).join('')}</div><p class="metadata mt">파일로 한꺼번에 올리기</p><div class="form-grid mt-s"><button class="btn-icon" data-action="import" data-type="duties">${icon('users')}급식지도 일괄 등록 (CSV·엑셀)</button><button class="btn-icon" data-action="import" data-type="schedule">${icon('calendar')}학사 일정 일괄 등록 (CSV·엑셀)</button></div>`);}
 function userForm(id){const u=S.users.find(u=>u.id===id);if(!u)return;openDialog('교직원 정보 수정',`<form id="user-form" data-id="${u.id}"><div class="form-grid"><div class="field full"><span class="label-text">이메일</span><span class="small">${h(u.email)}</span></div>${field('이름','name',u.name,'text',{required:true,full:true,extra:'maxlength="60"'})}${select('소속 부서','department_id',[['','부서 없음'],...depOptions()],u.department_id||'')}${select('권한','role',[['staff','교직원'],['admin','관리자']],u.role)}${select('계정 상태','active',[['true','사용 중'],['false','비활성 (모든 자료 접근 차단)']],String(u.active),true)}</div><div class="form-error" role="alert"></div><div class="dialog-footer"><button type="button" data-action="close">취소</button><button class="primary" type="submit">저장</button></div></form>`);}
 function passwordForm(){openDialog('비밀번호 변경',`<form id="password-form"><div class="form-grid">${field('현재 비밀번호','current','','password',{required:true,full:true,extra:'autocomplete="current-password"'})}${field('새 비밀번호','password','','password',{required:true,full:true,extra:'minlength="12" maxlength="128" autocomplete="new-password"'})}</div><div class="form-error" role="alert"></div><div class="dialog-footer"><button type="button" data-action="close">취소</button><button class="primary" type="submit">변경</button></div></form>`);}
 function askDelete(title,confirmAction,id,record=''){const r=confirmAction==='confirm-delete-record'?byId(id):null;
@@ -242,7 +255,7 @@ document.addEventListener('click',async event=>{
     if(action==='delete-department'){if(!confirm('이 부서를 삭제할까요? 소속 교직원이나 안내가 있으면 삭제되지 않습니다.'))return;await db.admin.removeDepartment(btn.dataset.id);await refresh({silent:true});toast('부서를 삭제했습니다.');return;}
     if(action==='install-app'){const ev=window.__installPrompt;if(!ev){toast('주소창 오른쪽의 앱 설치 아이콘(또는 브라우저 메뉴 → 앱 설치)을 눌러 설치해주세요.');return;}ev.prompt();window.__installPrompt=null;return;}
     if(action==='filter-kind'){S.page='notices';S.kind=kind;S.search='';render();return;}
-    if(action==='create')return createChooser();
+    if(action==='create')return recordForm(null,labels[S.kind]?S.kind:'notice');
     if(action==='choose-type')return kind==='meal'?mealForm():kind==='duty'?dutyForm():recordForm(null,kind);
     if(action==='detail')return detail(id);
     if(action==='edit-record')return recordForm(byId(id));
@@ -274,7 +287,13 @@ document.addEventListener('change',event=>{
   if(target.id==='kind-filter'){S.kind=target.value;$('#record-list').innerHTML=listRows();}
   if(target.id==='department-filter'){S.dep=target.value;$('#record-list').innerHTML=listRows();}
   if(target.id==='duty-unassigned'){S.dutyUnassigned=target.checked;render();}
-  if(target.id==='f-kind'&&$('#record-form')){const date=$('#record-form [name=event_date]');date.required=target.value!=='notice';if(target.value!=='notice'&&!date.value)date.value=S.date;}
+  if(target.name==='kind'&&target.form?.id==='record-form'){
+    // 유형에 따라 날짜 줄만 보이거나 숨긴다. 공지사항 외에는 날짜가 비어 있으면 보고 있던 날짜를 채운다.
+    const k=target.value,[dl,tl]=dateLabels(k);$('#date-row')?.classList.toggle('hidden',k==='notice');const hint=$('#kind-hint');if(hint)hint.textContent=kindHints[k]||'';
+    const dLabel=$('label[for="f-event_date"]'),tLabel=$('label[for="f-start_time"]');if(dLabel)dLabel.textContent=dl;if(tLabel)tLabel.textContent=tl;
+    const date=$('#record-form [name=event_date]');if(date&&k!=='notice'&&!date.value)date.value=S.date;
+  }
+  if(target.name==='publish_mode'&&target.form?.id==='record-form'&&!target.form.dataset.id){const b=$('#record-submit');if(b)b.textContent=submitLabels[target.value]||'게시하기';}
 });
 document.addEventListener('input',event=>{if(event.target.id==='search-input'){S.search=event.target.value;$('#record-list').innerHTML=listRows();}});
 document.addEventListener('submit',async event=>{
@@ -291,13 +310,16 @@ document.addEventListener('submit',async event=>{
       const finalState=v.publish_mode==='draft'?'draft':v.publish_mode==='hidden'?'hidden':'published';
       const finalPublishAt=v.publish_mode==='schedule'?fromInput(v.publish_at):now().toISOString();
       if(v.publish_mode==='schedule'&&(!v.publish_at||finalPublishAt<=now().toISOString()))throw new Error('예약 시각은 현재 시각보다 뒤로 지정해주세요.');
-      const base={...v,expire_at:fromInput(v.expire_at)};delete base.files;delete base.publish_mode;
-      for(const k of Object.keys(base))if(k.startsWith('repeat_'))delete base[k];
+      // 폼의 빈 칸('')은 validateRecord 가 null·기본값으로 정리한다. 비워 둔 선택 항목이 DB 오류가 되지 않게.
+      const base={kind:v.kind,title:v.title,content:v.content,channel:v.channel,department_id:v.department_id,target_department_id:v.target_department_id,importance:v.importance,location:v.location,event_date:v.event_date,end_date:v.end_date,start_time:v.start_time,end_time:v.end_time,link:v.link,expire_at:fromInput(v.expire_at)};
+      if(base.kind==='notice')Object.assign(base,{event_date:'',end_date:'',start_time:'',end_time:''}); // 공지사항은 날짜 없이(숨긴 날짜 줄의 값은 버린다)
+      else if(!base.event_date)throw new Error(`${labels[base.kind]||'이 유형'}에는 날짜가 필요합니다. 날짜를 골라주세요.`);
+      let repeat=null;
       if(!id&&(v.repeat_freq||'none')!=='none'){
         if(files.length)throw new Error('반복 일정에는 첨부를 붙일 수 없습니다. 등록 후 회차를 열어 첨부해주세요.');
         if(v.kind==='notice')throw new Error('공지사항은 반복할 수 없습니다. 행사·회의, 방송, 제출 기한, 학사 일정, 창체 중에서 선택해주세요.');
         if(v.repeat_end!=='count'&&!v.repeat_until)throw new Error('반복 종료 날짜를 입력해주세요.');
-        base.repeat={freq:v.repeat_freq,interval:Number(v.repeat_interval)||1,weekdays:fd.getAll('repeat_weekday').map(Number),skip_holidays:fd.has('repeat_skip_holidays'),...(v.repeat_end==='count'?{count:Number(v.repeat_count)||1}:{until:v.repeat_until})};
+        repeat={freq:v.repeat_freq,interval:Number(v.repeat_interval)||1,weekdays:fd.getAll('repeat_weekday').map(Number),skip_holidays:fd.has('repeat_skip_holidays'),...(v.repeat_end==='count'?{count:Number(v.repeat_count)||1}:{until:v.repeat_until})};
       }
       // A new announcement with files is first saved as a hidden draft, so its body never appears
       // publicly without its attachments. Publishing is confirmed only after every file has landed.
@@ -305,11 +327,11 @@ document.addEventListener('submit',async event=>{
       let savedId=form.dataset.savedId||id;
       // A retry after a partial upload must not create the same announcement again.
       if(!form.dataset.savedId){
-        const scope=base.scope||'single';delete base.scope;
-        const body={...base,state:staged?'draft':finalState,publish_at:staged?now().toISOString():finalPublishAt};
+        const scope=v.scope||'single';
+        const body=validateRecord({...base,state:staged?'draft':finalState,publish_at:staged?now().toISOString():finalPublishAt},S.user,{departments:S.data.departments});
         let saved;
         if(id){saved=await db.records.update(id,Number(form.dataset.version),body,scope);saved.version=Number(form.dataset.version)+1;}
-        else if(base.repeat){const rule=validateRepeat(base.repeat);delete body.repeat;const dates=occurrences(body.event_date,rule,(S.data.holidays||[]).map(x=>x.date));saved=await db.records.createSeries(body,dates,rule);saved.version=1;}
+        else if(repeat){const rule=validateRepeat(repeat);const dates=occurrences(body.event_date,rule,(S.data.holidays||[]).map(x=>x.date));saved=await db.records.createSeries(body,dates,rule);saved.version=1;}
         else saved=await db.records.create(body);
         savedId=id||saved.id;form.dataset.savedId=savedId;form.dataset.recordVersion=String(saved.version||1);if(saved.count)form.dataset.seriesCount=String(saved.count);
       }
